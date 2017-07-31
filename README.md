@@ -11,13 +11,18 @@ ANDROID SDK基于网宿云存储API规范构建，适用于ANDROID。使用此SD
 
 ## 工程介绍
 
-[wcs-android-sdk](https://github.com/Wangsu-Cloud-Storage/wcs-android-sdk/tree/master/wcs-android-sdk)
+[wcs-android-sdk](https://github.com/hattie0312/wcs-android-sdk/tree/master/wcs-android-sdk)
 
 工程源码
 
-[app](https://github.com/Wangsu-Cloud-Storage/wcs-android-sdk)
+[app](https://github.com/hattie0312/wcs-android-sdk/tree/master/app)
 
 sample 目录
+
+[libs](https://github.com/hattie0312/wcs-android-sdk/tree/master/app/libs)
+
+jar包 目录
+
 
 ## 
 
@@ -75,6 +80,7 @@ Android Studio:
 二、服务端开发环境准备 
 
 服务端开发环境请参考wcs-Java-SDK: https://github.com/Wangsu-Cloud-Storage/wcs-java-sdk
+
 
 #### 初始化
 
@@ -264,3 +270,30 @@ Log.d("CNCLog", String.format(Locale.CHINA, "uploaded : %s, total : %s", uploade
 ```
 
 服务端生成分片上传凭证： [参考上传凭证说明](https://wcs.chinanetcenter.com/document/API/Token/UploadToken)
+
+5.获取token
+
+**范例：**
+
+移动端代码：
+
+```java
+/**
+     * 获取token接口范例
+     */
+    public void getToken(TokenParams params) {
+	final String filePath = params.filePath;
+        FileUploader.getToken(params, new FileStringListener() {
+            @Override
+            public void onSuccess(int status, String responseString) {
+		//成功返回json
+                Log.d(TAG, "onSuccess: " + responseString);
+            }
+
+            @Override
+            public void onFailure(OperationMessage operationMessage) {
+                Log.d(TAG, "onFailure: " + operationMessage.getMessage());
+            }
+        });
+    }
+```

@@ -12,7 +12,8 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:visibility="gone">
 
         <Spinner
             android:id="@+id/file_size_sp"
@@ -45,14 +46,16 @@
         android:layout_height="wrap_content"
         android:hint="base url(必填)"
         android:inputType="textUri"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <EditText
         android:id="@+id/token_et"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="token上传凭证（可选）"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <EditText
         android:id="@+id/keyname_et"
@@ -101,7 +104,8 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:text="分片raw"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/slice_upload_json"
@@ -118,7 +122,8 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:text="普通raw"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/upload_normal_json"
@@ -126,7 +131,8 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:text="普通"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:visibility="gone" />
 
 
         <Button

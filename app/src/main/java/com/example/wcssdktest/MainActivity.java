@@ -19,18 +19,22 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.chinanetcenter.wcs.android.ClientConfig;
-import com.chinanetcenter.wcs.android.Config;
 import com.chinanetcenter.wcs.android.LogRecorder;
 import com.chinanetcenter.wcs.android.api.FileUploader;
 import com.chinanetcenter.wcs.android.api.ParamsConf;
+import com.chinanetcenter.wcs.android.api.TokenParams;
 import com.chinanetcenter.wcs.android.entity.OperationMessage;
 import com.chinanetcenter.wcs.android.internal.UploadFileRequest;
+import com.chinanetcenter.wcs.android.listener.FileStringListener;
 import com.chinanetcenter.wcs.android.listener.FileUploaderListener;
 import com.chinanetcenter.wcs.android.listener.FileUploaderStringListener;
 import com.chinanetcenter.wcs.android.listener.SliceUploaderBase64Listener;
 import com.chinanetcenter.wcs.android.listener.SliceUploaderListener;
+import com.chinanetcenter.wcs.android.utils.EncodeUtils;
+import com.chinanetcenter.wcs.android.utils.FileUtil;
 import com.chinanetcenter.wcs.android.utils.WetagUtil;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -124,7 +128,7 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
             case R.id.slice_upload_json:
                 showLoadingDialog();
                 initParams();
-                sliceUploadJSON();
+                getToken();
                 break;
 
             case R.id.upload_normal:
@@ -153,8 +157,6 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
     }
 
     private void initParams() {
-        FileUploader.setUploadUrl(mBaseUrlEt.getText().toString().trim());
-
         conf = new ParamsConf();
 
         conf.fileName = TextUtils.isEmpty(mFilenameEt.getText().toString()) ? "" : mFilenameEt.getText().toString();
@@ -185,12 +187,13 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
     }
 
     private void init() {
-        Config.DEBUGGING = true;
         LogRecorder.getInstance().enableLog();
         mProgressDialog = new ProgressDialog(this);
         ClientConfig config = new ClientConfig();
         config.setMaxConcurrentRequest(10);
         FileUploader.setClientConfig(config);
+//        FileUploader.setUploadUrl(mBaseUrlEt.getText().toString().trim());
+        FileUploader.setUploadUrl("http://tangdou1-up.8686c.com");
 
         mHandler = new Handler() {
             @Override
@@ -454,6 +457,44 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
         }).start();
     }
 
+    /**
+     * 异步分片上传
+     */
+    private void sliceUploadIndeed(String uploadToken, String filePath, File file) {
+        FileUploader.sliceUpload(filePath, this, uploadToken, file, null, new SliceUploaderListener() {
+
+            @Override
+            public void onSliceUploadSucceed(JSONObject reponseJSON) {
+                Log.d(TAG, "responseJSON : " + reponseJSON.toString());
+                Message msg = new Message();
+                msg.what = MESSAGE_FINISH;
+                msg.obj = "responseJSON : " + reponseJSON.toString();
+                mHandler.sendMessage(msg);
+            }
+
+            @Override
+            public void onProgress(long uploaded, long total) {
+                String percent = (float) uploaded / total * 100 + "%";
+                String progressMsg = "当前: " + uploaded + ", 总: " + total +
+                        ", 比例: " + percent + "\r\n";
+                Log.d(TAG, progressMsg);
+                Message.obtain(mHandler, MESSAGE_APPEND, progressMsg).sendToTarget();
+            }
+
+            @Override
+            public void onSliceUploadFailured(HashSet<String> errorMessages) {
+                StringBuilder sb = new StringBuilder();
+                for (String string : errorMessages) {
+                    sb.append(string + "\r\n");
+                    Log.e(TAG, "errorMessage : " + string);
+                }
+                Message msg = new Message();
+                msg.what = MESSAGE_FINISH;
+                msg.obj = sb.toString();
+                mHandler.sendMessage(msg);
+            }
+        });
+    }
 
     private String getCurrentFilePath() {
         return mFilePath + File.separator + mFileSizeSp.getSelectedItem();
@@ -477,6 +518,50 @@ public class MainActivity extends ActionBarActivity implements OnClickListener {
         return dir;
     }
 
+
+    /**
+     * 获取token，成功后分片上传文件
+     * 待上传文件需放入sdcard中WcsSdk文件夹，并重命名为"test.mp4"
+     */
+    public void getToken() {
+        TokenParams params = new TokenParams();
+        params.userId = "1100186";
+        params.timeStamp = (int) (System.currentTimeMillis() / 1000);
+        params.token = EncodeUtils.MD5("80955aaf19949814ccc3a868d2def773" + params.userId + params.timeStamp);
+        params.filePath = mFilePath + File.separator + "test.mp4";
+        params.fileName = "test.mp4";
+        params.cmd = EncodeUtils.urlsafeEncode("{\"adId\":\"f35daba1015c10009f94cfe500000000\",\"backAdId\":\"f35d4326015c1000c7648b9f00000000\",\"tcTemplateName\":\"video_shortvideo\",\"wmTemplateName\":\"logo\",\"notifyUrl\":\"https://120.41.3.45/callback/callback!testCall.action\",\"vframe\":{\"offset\":1,\"w\":100,\"h\":100,\"n\":4,\"Interval\":4, \"detectNotifyRule\":\"all\",\"notifyUrl\":\"https://120.41.3.45/callback/callback!testCall.action\"}}");
+        final String filePath = params.filePath;
+        FileUploader.getToken(params, new FileStringListener() {
+            @Override
+            public void onSuccess(int status, String responseString) {
+                Log.d(TAG, "onSuccess: " + responseString);
+                try {
+                    JSONObject data = new JSONObject(responseString);
+                    sliceUploadIndeed(data.getString("uploadToken"), null, new File(filePath));
+                } catch (JSONException e) {
+                    onFailure(new OperationMessage(e));
+                }
+            }
+
+            @Override
+            public void onFailure(OperationMessage operationMessage) {
+                Log.d(TAG, "onFailure: " + operationMessage.getMessage());
+                Message msg = new Message();
+                msg.what = MESSAGE_FINISH;
+                msg.obj = "onFailure: " + operationMessage.getMessage() + "\r\n";
+                mHandler.sendMessage(msg);
+            }
+        });
+    }
+
+    private void generateMp4File() throws IOException {
+        String path = mFilePath + File.separator + "test.mp4";
+        File file = new File(path);
+        if (!file.exists()) {
+            FileUtil.copyFromAsset("test.mp4", getApplicationContext(), mFilePath);
+        }
+    }
 
     private void generateFiles() throws IOException {
         if (getSDFileDir() == null) {

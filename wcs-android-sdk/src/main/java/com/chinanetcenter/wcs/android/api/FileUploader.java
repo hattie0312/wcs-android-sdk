@@ -11,7 +11,6 @@ import com.chinanetcenter.wcs.android.entity.OperationMessage;
 import com.chinanetcenter.wcs.android.entity.SliceCache;
 import com.chinanetcenter.wcs.android.entity.SliceCacheManager;
 import com.chinanetcenter.wcs.android.entity.SliceResponse;
-import com.chinanetcenter.wcs.android.exception.ServiceException;
 import com.chinanetcenter.wcs.android.internal.SliceUploadRequest;
 import com.chinanetcenter.wcs.android.internal.UploadFileRequest;
 import com.chinanetcenter.wcs.android.internal.WcsCompletedCallback;
@@ -134,6 +133,57 @@ public class FileUploader {
         Block.setSliceSize(sliceSize);
     }
 
+    public static void getToken(TokenParams tokenParams, FileStringListener listener) {
+        if (null == tokenParams || TextUtils.isEmpty(tokenParams.userId) || TextUtils.isEmpty(tokenParams.token) || TextUtils.isEmpty(tokenParams.fileName) || TextUtils.isEmpty(tokenParams.filePath)) {
+            if (listener != null) {
+                listener.onFailure(new OperationMessage(-1, "param invalidate"));
+            }
+            WCSLogUtil.e("param invalidate");
+            return;
+        }
+        File file = new File(tokenParams.filePath);
+        if (!file.canRead()) {
+            if (listener != null) {
+                listener.onFailure(new OperationMessage(-1, "file access denied."));
+            }
+            WCSLogUtil.e("file access denied.");
+            return;
+        }
+        WcsRequest request = new WcsRequest();
+        Map<String, Object> params = new HashMap<>();
+        params.put("userId", tokenParams.userId);
+        params.put("token", tokenParams.token);
+        params.put("timeStamp", tokenParams.timeStamp);
+        params.put("originFileName", tokenParams.fileName);
+        params.put("fileMd5", EncodeUtils.MD5(tokenParams.filePath));
+        params.put("originFileSize", file.length());
+        if (!TextUtils.isEmpty(tokenParams.domain)) {
+            params.put("domain", tokenParams.domain);
+        }
+        if (!TextUtils.isEmpty(tokenParams.cmd)) {
+            params.put("cmd", tokenParams.cmd);
+        }
+        if (!TextUtils.isEmpty(tokenParams.overwrite)) {
+            params.put("overwrite", tokenParams.overwrite);
+        }
+        if (!TextUtils.isEmpty(tokenParams.videoSource)) {
+            params.put("videoSource", tokenParams.videoSource);
+        }
+
+        request.setMethod(HttpMethod.GET);
+
+        //增加头部请求
+        Map<String, String> headers = new HashMap<>();
+        headers.put(HttpHeaders.CACHE_CONTROL, "no-cache");
+        headers.put(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+        request.setHeaders(headers);
+
+        String url = "http://api.cloudv.haplat.net/vod/videoManage/getUploadToken";
+
+        request.setUrl(addQueryParameter(url, params));
+
+        getInternalRequest(null, sClientConfig).get(request, listener);
+    }
 
     private static String addQueryParameter(String url, Map<String, Object> params) {
         if (params == null) {
